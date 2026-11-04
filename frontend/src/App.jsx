@@ -34,6 +34,8 @@ export default function App() {
   const [gesture, setGesture] = useState(null)
   // 情绪专属动作：每次切换情绪带一个新 id，让 Live2DStage 播放一次
   const [emotionAction, setEmotionAction] = useState(null)
+  // 对话语义触发的情绪动作先挂起，等语音真正开口时再播放，避免动作抢在语音前面
+  const pendingEmotionActionRef = useRef(null)
   // 待播放的手势：等语音真正开始播放时再触发
   const pendingGestureRef = useRef(null)
   // 聊天栏折叠状态提到 App：展开时舞台要给右侧让位，避免聊天框压住角色
@@ -89,11 +91,23 @@ export default function App() {
   const activeTheme =
     themeOverride !== 'auto' ? LIGHT_THEMES[themeOverride].theme : EMOTIONS[emotion].theme
 
+  const flushPendingEmotionAction = useCallback(() => {
+    const pending = pendingEmotionActionRef.current
+    if (!pending) return
+    pendingEmotionActionRef.current = null
+    setEmotionAction(pending)
+  }, [])
+
   const applyEmotion = useCallback((next, reason) => {
     if (!EMOTIONS[next] || next === emotionRef.current) return
     setEmotion(next)
     // 快捷按钮自带手势，不再叠加情绪动作，避免两个动作互相顶掉
-    if (reason !== '快捷互动') setEmotionAction({ id: uid++, key: next })
+    if (reason !== '快捷互动') {
+      const action = { id: uid++, key: next }
+      // 对话语义：等语音开口再播动作；其它来源（调试、点击）立即播放
+      if (reason === '对话语义') pendingEmotionActionRef.current = action
+      else setEmotionAction(action)
+    }
     addLog('情绪', `${EMOTIONS[next].code} · ${EMOTIONS[next].label}${reason ? `（${reason}）` : ''}`)
   }, [addLog])
 
@@ -104,6 +118,7 @@ export default function App() {
         const finish = () => resolve()
         if (voiceMutedRef.current || !text) {
           pendingGestureRef.current = null
+          flushPendingEmotionAction()
           finish()
           return
         }
@@ -124,6 +139,7 @@ export default function App() {
             const blob = result?.blob
             if (!blob || !blob.type.startsWith('audio')) {
               pendingGestureRef.current = null
+              flushPendingEmotionAction()
               finish()
               return
             }
@@ -154,6 +170,7 @@ export default function App() {
               if (settled || started) return
               started = true
               setVoicePlaying(true)
+              flushPendingEmotionAction()
               const pending = pendingGestureRef.current
               if (pending) {
                 pendingGestureRef.current = null
@@ -220,6 +237,7 @@ export default function App() {
       if (!text || typing) return
       addMessage('user', text)
       addLog(quickAction ? '快捷' : '输入', text)
+      pendingEmotionActionRef.current = null
       setTyping(true)
 
       // 快捷互动附带动作反馈：表情在点击瞬间强制切换，后续回复不再覆盖
@@ -325,6 +343,7 @@ export default function App() {
   const forceEmotion = useCallback(
     (emo) => {
       emotionRef.current = '__force__' // 允许重复点击同一情绪也触发
+      pendingEmotionActionRef.current = null
       setEmotion(emo)
       // 交给 Live2DStage 播放该情绪专属动作（重复点击也会重新触发）
       setEmotionAction({ id: uid++, key: emo })
