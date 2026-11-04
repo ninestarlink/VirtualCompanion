@@ -769,16 +769,15 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
   const centerZoneRef = useRef(false)
   // 中央固定区最小宽度：模型实际宽度不足屏幕 30% 时按 30% 兜底
   const GAZE_CENTER_MIN_RATIO = 0.3
-  // 中立视线：模型包围盒中心再向上偏 12%，让目光落在观众脸上
+  // 固定视线：与引擎刚加载时的默认正视方向完全一致（焦点归零）
   const focusNeutralPoint = () => {
     const model = modelRef.current
-    if (!model) return
+    const controller = model?.internalModel?.focusController
+    if (!controller) return
     try {
-      const bounds = model.getBounds()
-      model.focus(
-        bounds.x + bounds.width / 2,
-        bounds.y + bounds.height / 2 - bounds.height * 0.12,
-      )
+      controller.focus(0, 0, true)
+      controller.vx = 0
+      controller.vy = 0
     } catch (_) { /* 忽略 */ }
   }
 
