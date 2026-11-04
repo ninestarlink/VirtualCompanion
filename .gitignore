@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+frontend/dist/
+
+# 密钥与环境变量（真实密钥严禁入库，仓库只保留 .env.example）
+backend/.env
+.env
+
+# 本地音色模型（体积大且含第三方角色音色，不提交）
+backend/models/
+
+# 原始 Live2D 素材（含 125MB PSD，已移出项目目录，避免提交大文件）
+DeepSeek live2D/
+*.psd
+
+# 系统文件
+.DS_Store
+Thumbs.db

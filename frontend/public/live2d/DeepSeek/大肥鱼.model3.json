@@ -1,0 +1,52 @@
+{
+    "Version": 3,
+    "FileReferences": {
+        "Moc": "大肥鱼.moc3",
+        "Textures": [
+            "大肥鱼.4096/texture_00.png",
+            "大肥鱼.4096/texture_01.png",
+            "大肥鱼.4096/texture_02.png",
+            "大肥鱼.4096/texture_03.png",
+            "大肥鱼.4096/texture_04.png"
+        ],
+        "Physics": "大肥鱼.physics3.json",
+        "DisplayInfo": "大肥鱼.cdi3.json",
+        "Expressions": [
+            { "Name": "emotion_idle", "File": "Exp3/emotion_idle.exp3.json" },
+            { "Name": "emotion_happy", "File": "Exp3/emotion_happy.exp3.json" },
+            { "Name": "emotion_shy", "File": "Exp3/emotion_shy.exp3.json" },
+            { "Name": "emotion_sleepy", "File": "Exp3/emotion_sleepy.exp3.json" }
+        ],
+        "Motions": {
+            "Idle": [
+                { "File": "Animation/IDLE.motion3.json", "FadeInTime": 1.0, "FadeOutTime": 1.0 }
+            ],
+            "Tap": [
+                { "File": "Animation/举手切默认手.motion3.json" },
+                { "File": "Animation/狗尾草切换出来.motion3.json" },
+                { "File": "Animation/竖手指切出来动画.motion3.json" }
+            ],
+            "IdleExtra": [
+                { "File": "Animation/默认手切举手.motion3.json" },
+                { "File": "Animation/举手切默认手.motion3.json" },
+                { "File": "Animation/竖手指切出来动画.motion3.json" },
+                { "File": "Animation/竖手指切回默认.motion3.json" },
+                { "File": "Animation/狗尾草切换出来.motion3.json" },
+                { "File": "Animation/狗尾草切回默认手.motion3.json" },
+                { "File": "Animation/脱捕.motion3.json" }
+            ]
+        }
+    },
+    "Groups": [
+        {
+            "Target": "Parameter",
+            "Name": "EyeBlink",
+            "Ids": ["ParamEyeROpen", "ParamEyeLOpen"]
+        },
+        {
+            "Target": "Parameter",
+            "Name": "LipSync",
+            "Ids": ["ParamMouthOpenY"]
+        }
+    ]
+}

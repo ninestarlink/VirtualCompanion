@@ -1,0 +1,14 @@
+{
+    "Type": "Live2D Expression",
+    "IsModelCustomizationExpression": false,
+    "Parameters": [
+        { "Id": "key1", "Value": 0.0, "Blend": "Overwrite" },
+        { "Id": "key3", "Value": 0.0, "Blend": "Overwrite" },
+        { "Id": "key4", "Value": 0.0, "Blend": "Overwrite" },
+        { "Id": "key5", "Value": 0.0, "Blend": "Overwrite" },
+        { "Id": "key6", "Value": 0.0, "Blend": "Overwrite" },
+        { "Id": "key7", "Value": 1.0, "Blend": "Overwrite" },
+        { "Id": "key9", "Value": 0.0, "Blend": "Overwrite" },
+        { "Id": "key13", "Value": 1.0, "Blend": "Overwrite" }
+    ]
+}
