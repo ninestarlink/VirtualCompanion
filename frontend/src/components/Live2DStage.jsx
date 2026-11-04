@@ -391,14 +391,29 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       }
     }
 
+    // 动作序列令牌：新的动作或点击会作废旧序列，避免两段动作交叉推进导致叠手
+    let sequenceToken = 0
+    const cancelSequence = () => {
+      sequenceToken += 1
+      stopIdleWatch()
+      idleSequenceActive = false
+    }
+
     // 按顺序播放一组动作，每段 loop:false，播完自动接下一段。
     // 注意：引擎的 motion 选项 onFinish 只在动作带音频时才会回调，无音频动作永远不触发，
     // 所以这里轮询 motionManager.state 判断当前段是否已经结束（被替换或播完都算）。
-    const playSequence = (model, steps, { group = 'IdleExtra', priority = 2, index = 0, debug = false } = {}) => {
+    const playSequence = (model, steps, { group = 'IdleExtra', priority = 2, index = 0, debug = false, token = null } = {}) => {
       if (disposed) return
+      let myToken = token
+      if (index === 0) {
+        sequenceToken += 1
+        myToken = sequenceToken
+        idleSequenceActive = true
+      }
       stopIdleWatch()
+      if (myToken !== sequenceToken) return
       if (index >= steps.length) {
-        idleSequenceActive = false
+        if (myToken === sequenceToken) idleSequenceActive = false
         return
       }
       const target = steps[index]
@@ -412,7 +427,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       }
       Promise.resolve(started)
         .then((ok) => {
-          if (disposed) return
+          if (disposed || myToken !== sequenceToken) return
           if (!ok) {
             idleSequenceActive = false
             return
@@ -425,6 +440,10 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
               idleSequenceActive = false
               return
             }
+            if (myToken !== sequenceToken) {
+              stopIdleWatch()
+              return
+            }
             const st = model.internalModel?.motionManager?.state
             if (!st) {
               stopIdleWatch()
@@ -433,10 +452,12 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
             }
             if (st.currentGroup === group && st.currentIndex === target) return
             stopIdleWatch()
-            playSequence(model, steps, { group, priority, index: index + 1, debug })
+            playSequence(model, steps, { group, priority, index: index + 1, debug, token: myToken })
           }, 200)
         })
-        .catch(() => { idleSequenceActive = false })
+        .catch(() => {
+          if (myToken === sequenceToken) idleSequenceActive = false
+        })
     }
 
     // 待机成套动作使用 IdleExtra 组，并保留调试字段
@@ -916,7 +937,10 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       setToggleNotice(`${info.label} → ${info.values[next]}`)
       clearTimeout(noticeTimerRef.current)
       noticeTimerRef.current = setTimeout(() => setToggleNotice(null), 1400)
-      try { model.motion('Tap', undefined, 3, { loop: false }) } catch (_) { /* 忽略 */ }
+      try {
+        cancelSequence()
+        model.motion('Tap', undefined, 3, { loop: false })
+      } catch (_) { /* 忽略 */ }
       window.__lastPoke = part
       onTogglePart?.(part)
       return
@@ -929,7 +953,10 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
     // 1.5 秒内同一部位重复点击直接忽略，避免动作和语音重复叠加
     if (lastPokeRef.current.zone === zone && nowMs - lastPokeRef.current.at < 1500) return
     lastPokeRef.current = { zone, at: nowMs }
-    try { model.motion('Tap', undefined, 3, { loop: false }) } catch (_) { /* 忽略 */ }
+    try {
+      cancelSequence()
+      model.motion('Tap', undefined, 3, { loop: false })
+    } catch (_) { /* 忽略 */ }
     window.__lastPoke = zone
     onPoke?.(zone)
   }
