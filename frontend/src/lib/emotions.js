@@ -119,8 +119,8 @@ export const PART_FEEDBACK = {
 
 export const QUICK_ACTIONS = [
   // gesture 对应 model3.json 的 IdleExtra 动作索引；emotion 为点击后强制的表情
-  { key: 'pat', label: '摸摸头', message: '我轻轻摸了摸你的头', emotion: 'happy', gesture: [0, 1], shake: true },
-  { key: 'praise', label: '夸夸她', message: '你真的是全世界最可爱的小汐！', emotion: 'shy', gesture: [2, 3], shake: true },
+  { key: 'pat', label: '摸摸头', message: '我轻轻摸了摸你的头', emotion: 'happy', gesture: [0, 1], shake: 1.5 },
+  { key: 'praise', label: '夸夸她', message: '你真的是全世界最可爱的小汐！', emotion: 'shy', gesture: [2, 3], shake: 1.5 },
   { key: 'sleep', label: '哄她睡觉', message: '夜深啦，乖乖闭上眼睛睡觉吧', emotion: 'sleepy', gesture: [6] },
   { key: 'greet', label: '打个招呼', message: '嗨小汐，跟我打个招呼吧', emotion: 'idle', gesture: [0, 1] },
 ]

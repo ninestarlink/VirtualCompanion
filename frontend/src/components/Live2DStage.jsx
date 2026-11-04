@@ -282,12 +282,13 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
     }
 
     // 晃头：纯参数叠加，头发物理会自动跟随产生甩动
-    const headShake = { startAt: null, duration: 1100, amp: 1, count: 0 }
-    const startHeadShake = (strength = 1) => {
+    // amp 为左右甩头的角度（度），侧倾取一半幅度
+    const headShake = { startAt: null, duration: 1100, amp: 9, count: 0 }
+    const startHeadShake = (amp = 9) => {
       const now = performance.now()
       headShake.startAt = now
       headShake.duration = 1000 + Math.random() * 250
-      headShake.amp = strength
+      headShake.amp = amp
       headShake.count += 1
     }
     const applyHeadShake = () => {
@@ -300,8 +301,8 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       }
       const env = Math.sin(Math.min(1, p) * Math.PI)
       const wave = Math.sin(p * Math.PI * 2 * 2.5) // 2.5 个来回
-      addParam('ParamAngleX', 9 * env * wave * headShake.amp)
-      addParam('ParamAngleZ', 4.5 * env * wave * headShake.amp)
+      addParam('ParamAngleX', headShake.amp * env * wave)
+      addParam('ParamAngleZ', headShake.amp * 0.5 * env * wave)
     }
 
     // 待机眨眼：本模型有循环 IDLE 动作，引擎自带的 eyeBlink 会被动作更新跳过，
@@ -478,7 +479,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
           !emotionPose.key &&
           speakPose.blend <= 0.02
         ) {
-          startHeadShake(1)
+          startHeadShake(9)
         }
         scheduleHeadShake()
       }, delay)
@@ -610,6 +611,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
           blinkCount,
           earTwitchCount,
           headShakeCount: headShake.count,
+          headShakeAmp: headShake.amp,
           headShaking: headShake.startAt !== null,
           emotionPose: { key: emotionPose.key, duration: emotionPose.duration },
           bounds: (() => { const b = model.getBounds(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) } })(),
@@ -638,7 +640,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
         playGestureRef.current = (steps, options = {}) => {
           if (disposed || !steps?.length) return
           const now = performance.now()
-          if (options.shake) startHeadShake(options.shake === true ? 1.3 : options.shake)
+          if (options.shake) startHeadShake(options.shake === true ? 1.5 : options.shake)
           if (blinkState.startAt === null) {
             blinkState.startAt = now
             blinkCount += 1
