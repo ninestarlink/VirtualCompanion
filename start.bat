@@ -2,14 +2,14 @@
 chcp 936 >nul
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
-title Ğ¡Ï« ï¿½ï¿½ Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+title Ğ¡Ï« ¡¤ Ò»¼üÆô¶¯
 echo.
 echo ==========================================
-echo   Ğ¡Ï« ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+echo   Ğ¡Ï« ĞéÄâ°éÂÂ ¡¤ Ò»¼üÆô¶¯
 echo ==========================================
 echo.
 
-rem ---------- 1. Ç°ï¿½Ë¹ï¿½ï¿½ï¿½ ----------
+rem ---------- 1. Ç°¶Ë¹¹½¨ ----------
 set "NODE_DIR="
 where npm >nul 2>nul
 if errorlevel 1 (
@@ -21,21 +21,21 @@ if errorlevel 1 (
 )
 if defined NODE_DIR (
   set "PATH=!NODE_DIR!;!PATH!"
-  echo [1/3] Ê¹ï¿½ï¿½ Node: !NODE_DIR!
+  echo [1/3] Ê¹ÓÃ Node: !NODE_DIR!
 )
 
 where npm >nul 2>nul
 if errorlevel 1 goto no_node
 
 if exist "frontend\node_modules" goto build
-echo ï¿½ï¿½×°Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...
+echo °²×°Ç°¶ËÒÀÀµ...
 pushd frontend
 call npm install
 if errorlevel 1 goto install_fail
 popd
 
 :build
-echo ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½...
+echo ¹¹½¨Ç°¶Ë...
 pushd frontend
 call npm run build
 if errorlevel 1 goto build_fail
@@ -44,50 +44,50 @@ goto deps
 
 :install_fail
 popd
-echo [ï¿½ï¿½ï¿½ï¿½] Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×°Ê§ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+echo [´íÎó] Ç°¶ËÒÀÀµ°²×°Ê§°Ü£¬Çë¼ì²éÉÏ·½ÈÕÖ¾
 pause
 exit /b 1
 
 :build_fail
 popd
-echo [ï¿½ï¿½ï¿½ï¿½] Ç°ï¿½Ë¹ï¿½ï¿½ï¿½Ê§ï¿½Ü£ï¿½ï¿½ï¿½é¿´ï¿½Ï·ï¿½ï¿½ï¿½Ö¾
+echo [´íÎó] Ç°¶Ë¹¹½¨Ê§°Ü£¬Çë¼ì²éÉÏ·½ÈÕÖ¾
 pause
 exit /b 1
 
 :no_node
 if exist "frontend\dist\index.html" goto skip_build
-echo [ï¿½ï¿½ï¿½ï¿½] Î´ï¿½ï¿½âµ½ Node/npmï¿½ï¿½ï¿½ï¿½ frontend\dist ï¿½ï¿½ï¿½ï¿½ï¿½Ú£ï¿½ï¿½Ş·ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½
+echo [´íÎó] Î´¼ì²âµ½ Node/npm£¬ÇÒ frontend\dist ²»´æÔÚ£¬ÎŞ·¨¹¹½¨Ç°¶Ë
 pause
 exit /b 1
 
 :skip_build
-echo [1/3] Î´ï¿½ï¿½âµ½ Nodeï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ frontend\dist
+echo [1/3] Î´¼ì²âµ½ Node£¬Ìø¹ı¹¹½¨£¬Ö±½ÓÊ¹ÓÃÒÑÓĞ frontend\dist
 
-rem ---------- 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ----------
+rem ---------- 2. ºó¶ËÒÀÀµ ----------
 :deps
-echo [2/3] ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...
+echo [2/3] ¼ì²éºó¶ËÒÀÀµ...
 where python >nul 2>nul
 if errorlevel 1 (
-  echo [ï¿½ï¿½ï¿½ï¿½] Î´ï¿½ï¿½âµ½ Pythonï¿½ï¿½ï¿½ï¿½ï¿½È°ï¿½×° Python 3.10+
+  echo [´íÎó] Î´¼ì²âµ½ Python£¬ÇëÏÈ°²×° Python 3.10+
   pause
   exit /b 1
 )
 python -c "import fastapi, uvicorn, edge_tts" >nul 2>nul
 if not errorlevel 1 goto port
-echo ï¿½ï¿½×°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...
+echo °²×°ºó¶ËÒÀÀµ...
 python -m pip install -r backend\requirements.txt
 if errorlevel 1 (
-  echo [ï¿½ï¿½ï¿½ï¿½] ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×°Ê§ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+  echo [´íÎó] ºó¶ËÒÀÀµ°²×°Ê§°Ü£¬Çë¼ì²éÉÏ·½ÈÕÖ¾
   pause
   exit /b 1
 )
 
-rem ---------- 3. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ----------
+rem ---------- 3. Æô¶¯·şÎñ ----------
 :port
-echo [3/3] ï¿½ï¿½ï¿½ï¿½Ë·ï¿½ï¿½ï¿½...
+echo [3/3] Æô¶¯ºó¶Ë·şÎñ...
 python -c "import socket,sys; s=socket.socket(); s.settimeout(0.6); sys.exit(0 if s.connect_ex(('127.0.0.1',8600))==0 else 1)" >nul 2>nul
 if errorlevel 1 goto launch
-echo ï¿½ï¿½âµ½ 8600 ï¿½Ë¿ï¿½ï¿½ï¿½ï¿½Ğ·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...
+echo ¼ì²âµ½ 8600 ¶Ë¿ÚÒÑÓĞ·şÎñ£¬ÕıÔÚÖØÆô...
 powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8600 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }"
 
 set /a FREE_TRIES=0
@@ -100,27 +100,33 @@ ping -n 2 127.0.0.1 >nul
 goto wait_free
 
 :launch
-echo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë·ï¿½ï¿½ï¿½...
-start "Ğ¡Ï«ï¿½ï¿½ï¿½" cmd /k "python backend\main.py"
+echo ÕıÔÚÀ­Æğºó¶Ë·şÎñ...
+start "Ğ¡Ï«ºó¶Ë" cmd /k "python backend\main.py"
 
 set /a TRIES=0
 :wait
 python -c "import socket,sys; s=socket.socket(); s.settimeout(0.6); sys.exit(0 if s.connect_ex(('127.0.0.1',8600))==0 else 1)" >nul 2>nul
 if not errorlevel 1 goto open
 set /a TRIES+=1
-if %TRIES% geq 30 goto timeout
+if %TRIES% geq 40 goto timeout
 ping -n 2 127.0.0.1 >nul
 goto wait
 
 :open
-start "" http://127.0.0.1:8600
+ping -n 3 127.0.0.1 >nul
+echo ÕıÔÚ´ò¿ªÒ³Ãæ...
+powershell -NoProfile -Command "Start-Process 'http://127.0.0.1:8600'" >nul 2>nul
+if errorlevel 1 start "" "http://127.0.0.1:8600"
 echo.
-echo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½Ò³ï¿½ï¿½ï¿½Ñ´ò¿ª£ï¿½http://127.0.0.1:8600
+echo Æô¶¯Íê³É£¬Ò³ÃæÒÑ´ò¿ª£ºhttp://127.0.0.1:8600
 ping -n 4 127.0.0.1 >nul
 goto end
 
 :timeout
-echo [ï¿½ï¿½ï¿½ï¿½] ï¿½È´ï¿½ï¿½ï¿½Ë³ï¿½Ê±ï¿½ï¿½ï¿½ï¿½é¿´ï¿½ï¿½Ğ¡Ï«ï¿½ï¿½Ë¡ï¿½ï¿½ï¿½ï¿½ÚµÄ±ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢
+echo [ÌáÊ¾] ºó¶ËÆô¶¯½ÏÂı£¬ÏÈ´ò¿ªÒ³Ãæ£¬ÈôÏÔÊ¾ÎŞ·¨Á¬½ÓÇëÉÔºóË¢ĞÂ
+powershell -NoProfile -Command "Start-Process 'http://127.0.0.1:8600'" >nul 2>nul
+if errorlevel 1 start "" "http://127.0.0.1:8600"
+echo Çë²é¿´¡¸Ğ¡Ï«ºó¶Ë¡¹´°¿ÚÖĞµÄ±¨´íĞÅÏ¢
 pause
 goto end
 
