@@ -107,6 +107,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
     let app = null
     let observer = null
     let idleTimer = null
+    let headShakeTimer = null
     let greetTimer = null
     let appearanceInternal = null
     let idleSequenceActive = false
@@ -183,6 +184,22 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       const idm = model?.internalModel?.idManager
       if (!core || !idm) return
       try { core.setParameterValueById(idm.getId(id), value) } catch (_) { /* 忽略 */ }
+    }
+
+    // 在当前值基础上叠加，避免覆盖动作或其它逐帧参数写入
+    const addParam = (id, delta) => {
+      const model = modelRef.current
+      const core = model?.internalModel?.coreModel
+      const idm = model?.internalModel?.idManager
+      if (!core || !idm || !delta) return
+      try {
+        const handle = idm.getId(id)
+        const index = core.getParameterIndex(handle)
+        const min = core.getParameterMinimumValue(index)
+        const max = core.getParameterMaximumValue(index)
+        const next = Math.max(min, Math.min(max, core.getParameterValueById(handle) + delta))
+        core.setParameterValueById(handle, next)
+      } catch (_) { /* 忽略 */ }
     }
 
     // 装扮参数逐帧覆盖：表情（emotion_*）仍走 expression 管理器，互不冲突。
@@ -262,6 +279,29 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
         // 打招呼：轻轻晃头
         writeParam('ParamAngleZ', Math.sin(t * 6) * 3 * env)
       }
+    }
+
+    // 晃头：纯参数叠加，头发物理会自动跟随产生甩动
+    const headShake = { startAt: null, duration: 1100, amp: 1, count: 0 }
+    const startHeadShake = (strength = 1) => {
+      const now = performance.now()
+      headShake.startAt = now
+      headShake.duration = 1000 + Math.random() * 250
+      headShake.amp = strength
+      headShake.count += 1
+    }
+    const applyHeadShake = () => {
+      if (headShake.startAt === null) return
+      const now = performance.now()
+      const p = (now - headShake.startAt) / headShake.duration
+      if (p >= 1) {
+        headShake.startAt = null
+        return
+      }
+      const env = Math.sin(Math.min(1, p) * Math.PI)
+      const wave = Math.sin(p * Math.PI * 2 * 2.5) // 2.5 个来回
+      addParam('ParamAngleX', 9 * env * wave * headShake.amp)
+      addParam('ParamAngleZ', 4.5 * env * wave * headShake.amp)
     }
 
     // 待机眨眼：本模型有循环 IDLE 动作，引擎自带的 eyeBlink 会被动作更新跳过，
@@ -425,6 +465,25 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       }, delay)
     }
 
+    // 待机随机晃头：约每 10 秒一次，说话/拖拽/动作期间自动跳过
+    const scheduleHeadShake = () => {
+      clearTimeout(headShakeTimer)
+      const delay = 9000 + Math.random() * 3000
+      headShakeTimer = setTimeout(() => {
+        if (disposed) return
+        if (
+          emotionRef.current === 'idle' &&
+          !dragRef.current.dragging &&
+          !idleSequenceActive &&
+          !emotionPose.key &&
+          speakPose.blend <= 0.02
+        ) {
+          startHeadShake(1)
+        }
+        scheduleHeadShake()
+      }, delay)
+    }
+
     async function boot() {
       try {
         setError(null)
@@ -469,6 +528,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
         appearanceInternal?.on?.('beforeModelUpdate', applySpeakPose)
         // 眨眼和兽耳微动放在物理之后，避免被待机动作或物理输出覆盖
         appearanceInternal?.on?.('beforeModelUpdate', applyEmotionPose)
+        appearanceInternal?.on?.('beforeModelUpdate', applyHeadShake)
         appearanceInternal?.on?.('beforeModelUpdate', applyBlink)
         appearanceInternal?.on?.('beforeModelUpdate', applyEars)
         applyAppearance()
@@ -549,6 +609,8 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
           scale: model.scale.x,
           blinkCount,
           earTwitchCount,
+          headShakeCount: headShake.count,
+          headShaking: headShake.startAt !== null,
           emotionPose: { key: emotionPose.key, duration: emotionPose.duration },
           bounds: (() => { const b = model.getBounds(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) } })(),
           screen: { w: app.screen.width, h: app.screen.height },
@@ -573,9 +635,10 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
         onStatus?.('ready')
         // 快捷按钮手势：按顺序播放 IdleExtra 动作，成对动作能回到默认手型。
         // 同时立刻触发一次眨眼和兽耳抖动，作为被摸/被夸的即时反馈。
-        playGestureRef.current = (steps) => {
+        playGestureRef.current = (steps, options = {}) => {
           if (disposed || !steps?.length) return
           const now = performance.now()
+          if (options.shake) startHeadShake(options.shake === true ? 1.3 : options.shake)
           if (blinkState.startAt === null) {
             blinkState.startAt = now
             blinkCount += 1
@@ -615,6 +678,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
           }
         }
         scheduleIdleMotion()
+        scheduleHeadShake()
         // 初次见面打招呼
         greetTimer = setTimeout(() => {
           if (!disposed) playEmotionActionRef.current?.('idle')
@@ -633,6 +697,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
     return () => {
       disposed = true
       clearTimeout(idleTimer)
+      clearTimeout(headShakeTimer)
       clearTimeout(greetTimer)
       clearTimeout(noticeTimerRef.current)
       stopIdleWatch()
@@ -670,7 +735,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
   // 快捷按钮手势：每次点击带新的 id，按序列播放
   useEffect(() => {
     if (!ready || !gesture?.steps?.length) return
-    playGestureRef.current?.(gesture.steps)
+    playGestureRef.current?.(gesture.steps, { shake: gesture.shake })
   }, [ready, gesture])
 
   // 情绪专属动作：对话或调试切换情绪时触发一次

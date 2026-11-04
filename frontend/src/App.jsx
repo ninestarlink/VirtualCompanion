@@ -230,7 +230,7 @@ export default function App() {
       }
       if (action?.gesture) {
         // 先记下手势，等语音真正播放时再触发，避免回复还没开口就做动作
-        pendingGestureRef.current = { id: ++uid, steps: action.gesture }
+        pendingGestureRef.current = { id: ++uid, steps: action.gesture, shake: action.shake }
       }
 
       const streamId = ++uid
