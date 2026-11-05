@@ -372,9 +372,9 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       const drag = dragRef.current
       const inDock = pointerInDockRef.current
       const inCenter = centerZoneRef.current
-      // 鼠标刚移动过时让位给视线跟随，避免眼睛看起来在“抖”
+      // 关闭视线跟随时保持固定正视；鼠标刚移动过时让位给鼠标跟随
       const pointerActive = now - lastPointerMoveRef.current < 700 && !inDock && !inCenter
-      if (inDock || inCenter || pointerActive || drag.pressing || drag.dragging) {
+      if (!gazeFollowRef.current || inDock || inCenter || pointerActive || drag.pressing || drag.dragging) {
         micro.gazeTX = 0
         micro.gazeTY = 0
       }
