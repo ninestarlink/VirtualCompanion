@@ -96,6 +96,8 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
   const lastPokeRef = useRef({ zone: null, at: 0 })
   // 指针/拖拽共享状态：渲染循环与事件回调都读写这一份
   const dragRef = useRef({ centerX: 0, offset: 0, dragging: false, pressing: false, pressedAt: null })
+  // 最近一次鼠标在角色区域移动的时间，用于避免程序化眼动和视线跟随互相打架
+  const lastPointerMoveRef = useRef(0)
   const [tipIndex, setTipIndex] = useState(0)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState(null)
@@ -305,6 +307,94 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       addParam('ParamAngleZ', headShake.amp * 0.5 * env * wave)
     }
 
+    // ---------- 连续生命感层 ----------
+    // 待机不是一个动作接一个动作，而是始终有一层低幅度微动：
+    // 呼吸/重心慢波 + 随机视线扫视 + 呼吸唇动，保证没有完全静止的帧。
+    const micro = {
+      blend: 0,
+      gazeX: 0,
+      gazeY: 0,
+      gazeTX: 0,
+      gazeTY: 0,
+      nextSaccadeAt: performance.now() + 1000 + Math.random() * 1200,
+      saccadeCount: 0,
+    }
+
+    // 基础微动：多组互质频率的慢波，幅度控制在 1–2 度，避免像喝醉
+    const applyMicroMotion = () => {
+      const model = modelRef.current
+      if (!model) return
+      const t = performance.now() / 1000
+      const drag = dragRef.current
+      let target = 1
+      if (drag.pressing || drag.dragging) target = 0
+      else if (emotionRef.current === 'sleepy') target = 0.55
+      // 情绪大动作或说话时让位，避免叠加过头
+      if (emotionPose.key) target *= 0.35
+      target *= 1 - 0.6 * speakPose.blend
+      micro.blend += (target - micro.blend) * 0.08
+      if (micro.blend < 0.02) return
+      const b = micro.blend
+      addParam('ParamAngleX', (1.15 * Math.sin(t * 0.37 + 0.8) + 0.45 * Math.sin(t * 0.83 + 2.1)) * b)
+      addParam('ParamAngleY', (0.7 * Math.sin(t * 0.29 + 1.4) + 0.3 * Math.sin(t * 0.67)) * b)
+      addParam('ParamAngleZ', (0.8 * Math.sin(t * 0.22 + 2.6) + 0.3 * Math.sin(t * 0.53 + 0.4)) * b)
+      addParam('ParamBodyAngleX', (0.5 * Math.sin(t * 0.19 + 1.1) + 0.2 * Math.sin(t * 0.47)) * b)
+      addParam('ParamBodyAngleZ', (0.4 * Math.sin(t * 0.16 + 2.3)) * b)
+    }
+
+    // 随机视线扫视：眼球先动，头部轻微跟随；鼠标主动移动时自动让位
+    const applyGazeLife = () => {
+      const model = modelRef.current
+      if (!model) return
+      const now = performance.now()
+      const emotion = emotionRef.current
+      if (now >= micro.nextSaccadeAt) {
+        let spanX = 0.32
+        let spanY = 0.2
+        let biasY = 0
+        if (emotion === 'shy') {
+          // 害羞时视线往旁边躲，并略微向下
+          spanX = 0.55; spanY = 0.28; biasY = 0.16
+        } else if (emotion === 'sleepy') {
+          // 犯困时视线下沉、扫视更慢
+          spanX = 0.18; spanY = 0.16; biasY = -0.24
+        } else if (emotion === 'happy') {
+          spanX = 0.45; spanY = 0.26
+        }
+        micro.gazeTX = (Math.random() * 2 - 1) * spanX
+        micro.gazeTY = (Math.random() * 2 - 1) * spanY + biasY
+        const baseDelay = emotion === 'happy' ? 1200 : emotion === 'sleepy' ? 3000 : 1600
+        const extraDelay = emotion === 'happy' ? 1600 : emotion === 'sleepy' ? 2600 : 2400
+        micro.nextSaccadeAt = now + baseDelay + Math.random() * extraDelay
+        micro.saccadeCount += 1
+      }
+
+      const drag = dragRef.current
+      const inDock = pointerInDockRef.current
+      const inCenter = centerZoneRef.current
+      // 鼠标刚移动过时让位给视线跟随，避免眼睛看起来在“抖”
+      const pointerActive = now - lastPointerMoveRef.current < 700 && !inDock && !inCenter
+      if (inDock || inCenter || pointerActive || drag.pressing || drag.dragging) {
+        micro.gazeTX = 0
+        micro.gazeTY = 0
+      }
+      micro.gazeX += (micro.gazeTX - micro.gazeX) * 0.16
+      micro.gazeY += (micro.gazeTY - micro.gazeY) * 0.16
+      if (Math.abs(micro.gazeX) < 0.002 && Math.abs(micro.gazeY) < 0.002) return
+      addParam('ParamEyeBallX', micro.gazeX)
+      addParam('ParamEyeBallY', micro.gazeY)
+      // 头部只跟一点点，主要还是眼球在转
+      addParam('ParamAngleX', micro.gazeX * 2.2)
+      addParam('ParamAngleY', micro.gazeY * 1.6)
+    }
+
+    // 不说话时保留一点呼吸唇动，避免嘴部像开关一样完全闭合
+    const applyIdleMouth = () => {
+      if (voicePlayingRef.current) return
+      const t = performance.now() / 1000
+      addParam('ParamMouthOpenY', 0.012 + 0.012 * (0.5 + 0.5 * Math.sin(t * 1.15)))
+    }
+
     // 待机眨眼：本模型有循环 IDLE 动作，引擎自带的 eyeBlink 会被动作更新跳过，
     // 所以在 beforeModelUpdate 里手动按倍数收放眼睛，保留表情本身的闭眼状态。
     const blinkState = { nextAt: performance.now() + 2600, startAt: null, extra: 0 }
@@ -318,6 +408,8 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
       if (blinkState.startAt === null && now >= blinkState.nextAt) {
         blinkState.startAt = now
         blinkCount += 1
+        // 约 10% 概率连眨两下，比固定节奏更自然
+        if (blinkState.extra === 0 && Math.random() < 0.1) blinkState.extra = 1
       }
       let factor = 1
       if (blinkState.startAt !== null) {
@@ -551,6 +643,10 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
         // 眨眼和兽耳微动放在物理之后，避免被待机动作或物理输出覆盖
         appearanceInternal?.on?.('beforeModelUpdate', applyEmotionPose)
         appearanceInternal?.on?.('beforeModelUpdate', applyHeadShake)
+        // 连续生命感层：基础微动、视线扫视、呼吸唇动
+        appearanceInternal?.on?.('beforeModelUpdate', applyMicroMotion)
+        appearanceInternal?.on?.('beforeModelUpdate', applyGazeLife)
+        appearanceInternal?.on?.('beforeModelUpdate', applyIdleMouth)
         appearanceInternal?.on?.('beforeModelUpdate', applyBlink)
         appearanceInternal?.on?.('beforeModelUpdate', applyEars)
         applyAppearance()
@@ -631,6 +727,12 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
           scale: model.scale.x,
           blinkCount,
           earTwitchCount,
+          microLife: {
+            blend: Math.round(micro.blend * 100) / 100,
+            saccadeCount: micro.saccadeCount,
+            gazeX: Math.round(micro.gazeX * 1000) / 1000,
+            gazeY: Math.round(micro.gazeY * 1000) / 1000,
+          },
           headShakeCount: headShake.count,
           headShakeAmp: headShake.amp,
           headShaking: headShake.startAt !== null,
@@ -732,6 +834,9 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
         appearanceInternal?.off?.('beforeMotionUpdate', applySpeakLean)
         appearanceInternal?.off?.('beforeModelUpdate', applySpeakPose)
         appearanceInternal?.off?.('beforeModelUpdate', applyEmotionPose)
+        appearanceInternal?.off?.('beforeModelUpdate', applyMicroMotion)
+        appearanceInternal?.off?.('beforeModelUpdate', applyGazeLife)
+        appearanceInternal?.off?.('beforeModelUpdate', applyIdleMouth)
         appearanceInternal?.off?.('beforeModelUpdate', applyBlink)
         appearanceInternal?.off?.('beforeModelUpdate', applyEars)
       } catch (_) { /* 忽略 */ }
@@ -850,6 +955,7 @@ export default function Live2DStage({ emotion, expression, appearance, voicePlay
     const drag = dragRef.current
     if (!model) return
     const p = pointInfo(e)
+    lastPointerMoveRef.current = performance.now()
 
     if (drag.pressing) {
       const dx = e.clientX - drag.pressedAt.x
